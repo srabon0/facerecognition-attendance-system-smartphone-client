@@ -1,6 +1,7 @@
 // Import React
 import React, {useState} from 'react';
 import axios from 'axios';
+import * as Print from 'expo-print';
 // Import required components
 import {
   SafeAreaView,
@@ -12,9 +13,6 @@ import {
   Platform,
   PermissionsAndroid,
 } from 'react-native';
-import * as FileSystem from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
-import * as IntentLauncher from "expo-intent-launcher";
 
 import {
   launchCamera,
@@ -23,8 +21,8 @@ import {
 
 
 // Check you python hosting server I have gon mad for this one day
-const url = 'http://192.168.0.101:5000/image-from-app'
-const d_url = 'http://192.168.0.101:5000/download'
+const url = 'http://192.168.0.103:5000/image-from-app'
+const d_url = 'http://192.168.0.103:5000/download'
 
 const sendFile = (data)=>{
   return new Promise((resolve, reject)=>{
@@ -37,10 +35,54 @@ const sendFile = (data)=>{
   })
 }
 
+
 const App = () => {
   
   const [file, setFile] = useState({});
-  const [file_link, setFileLink] = useState('')
+  const [file_link, setFileLink] = useState(null)
+  const [allStudent,setAllStudent] = useState([])
+
+  const arrayTOHtml = (largeAr) => {
+    return largeAr.map(
+      (si) => `<tr>
+        <th scope="row">${si.index}</th>
+        <td>${si.studentId}</td>
+        <td>${si.studentName}</td>
+        <td>${si.status}</td>
+      </tr>`
+    );
+  };
+  
+const html = `
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+  </head>
+  <body>
+  <div class="container">
+  <h1 class="text-primary text-center">Attendance Report</h1>
+  <div class="w-75 mx-auto font-monospace" >
+  <table class="table table-striped">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Id</th>
+      <th scope="col">Name</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+   ${arrayTOHtml(allStudent)}
+  </tbody>
+</table>
+ 
+  </div>
+  <h4 class="text-success" > This report is genereated by srabon the kaga </h4>
+  </body>
+</html>
+`;
+
  
 
   const requestCameraPermission = async () => {
@@ -163,117 +205,43 @@ const App = () => {
     sendFile(file)
       .then(resp => {
         setFileLink(resp)
+        console.log(resp)
         alert('File Upload successful.')
       })
-      console.log(file_link);
-  }
-
-  const handleDownload = ()=>
-  {
-    axios.get(`${d_url}/${file_link}`)
-    console.log(file_link);
       
-  
   }
+// #################################################################
+  const handleDownload = async ()=>
+  { 
+    
+    const files = await JSON.parse(file_link)
+    await setAllStudent(files)
 
-  // const handleDownload = async () => {
-  //   const { status } = await MediaLibrary.requestPermissionsAsync();
-  //   const filesDirectory = FileSystem.cacheDirectory + "ExampleFolder";
-  //   //pdf doesnt work
-  //   const fileSource =  axios.get(`${d_url}/${file_link}`)
-  //   const fileName = file_link
-  //   //image works
-  //   // const fileSource = "https://irefindex.vib.be/wiki/images/a/a9/Example.jpg";
-  //   // const fileName = "example.jpg";
-
-  //   try {
-  //     if (status === "granted") {
-  //       const folder = await FileSystem.getInfoAsync(filesDirectory);
-
-  //       if (!folder.exists) {
-  //         await FileSystem.makeDirectoryAsync(filesDirectory);
-  //       }
-  //       const download = await FileSystem.downloadAsync(
-  //         fileSource,
-  //         `${filesDirectory}/${fileName}`
-  //       );
-  //       console.log("download", download);
-  //       console.log(
-  //         "passing this to create asset",
-  //         `${filesDirectory}/${fileName}`
-  //       );
-  //       const asset = await MediaLibrary.createAssetAsync(
-  //         `${filesDirectory}/${fileName}`
-  //       );
-  //       console.log("asset", asset);
-
-  //       const fileInfo = await FileSystem.getInfoAsync(
-  //         `${filesDirectory}/${fileName}`
-  //       );
-  //       console.log("fileInfo", fileInfo);
-
-  //       if (Platform.OS === "android") {
-  //         FileSystem.getContentUriAsync(fileInfo.uri).then((uri) => {
-  //           IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-  //             data: uri,
-  //             flags: 1,
-  //           });
-  //         });
-  //       } else {
-  //         console.log("ios");
-  //       }
-  //     }
-  //   } catch (err) {
-  //     console.log("FS Err: ", err);
-  //   }
-  // };
-
-// const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
-// if (!permissions.granted) {
-//     return;
-// }
-
-// const base64Data = 'my base 64 data';
-
-// try {
-//     await StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/pdf')
-//         .then(async(uri) => {
-//             await FileSystem.writeAsStringAsync(uri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-//         })
-//         .catch((e) => {
-//             console.log(e);
-//         });
-// } catch (e) {
-//     throw new Error(e);
-// }
-
+    await Print.printAsync({
+      html,
+      printerUrl: selectedPrinter?.url, // iOS only
+    });
+    setFile({})
+    setFileLink(null)
+    setAllStudent([])
     
 
-  // async function handleDownload(){
+    // setFileLink(file_link);
+    // file_link?.response_json.map(si=>console.log(si))
 
-  //   const callback = downloadProgress => {
-  //     const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-  //     setDownloadProgress(progress * 100);
-  //   };
-    
-  //   const downloadResumable = FileSystem.createDownloadResumable(
-  //     axios.get(`${d_url}/${file_link}`),
-  //     FileSystem.documentDirectory + `${file}`,
-  //     {},
-  //     callback
-  //   );
-    
-  //   try {
-  //     const { uri } = await downloadResumable.downloadAsync();
-  //     console.log('Finished downloading to ', uri);
-  //     setDocument(uri);
-  //   } catch (e) {
-  //     console.error(e);
-  //   }
-    
-    
-  // }
-
+    // alert("fileDownloaded")
+    // const urlDownload = `${d_url}/${file_link}`
+    // await RNPrint.print({ filePath: urlDownload })
+    // axios.get(urlDownload)
+    //   .then(resp => {
+    //     const file = new File([resp.data], {type: 'application/pdf'})
+    //     // const obj = URL.createObjectURL();
+    //     console.log(file)
+    //   })
+    //   .catch(err=>console.log(err.message))
+  } 
+  // ###################do no changes##########################################
+ 
   return (
     <SafeAreaView style={{flex: 1}}>
       <Text style={styles.titleText}>
@@ -293,11 +261,13 @@ const App = () => {
         </TouchableOpacity>
 
         {file_link ?
-          <TouchableOpacity onPress={()=>alert("file downloaded")}>
-            <Text style={styles.buttonStyle}>Download PDF</Text>
+          <TouchableOpacity onPress={handleDownload}>
+            <Text style={styles.buttonStyle}>Save PDF</Text>
           </TouchableOpacity> : null
         }
+        
       </View>
+      
     </SafeAreaView>
   );
 };
